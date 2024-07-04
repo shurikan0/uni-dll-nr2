@@ -140,13 +140,6 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         # normalize observations between -1 and 1
         if self.normalize:
             self.obs = normalize_data(self.obs, self.terminated)
-
-        
-        
-        print("Indices.shape",self.indices.shape)
-        print("Indices first element",self.indices[0])
-
-
         
 
     def __len__(self):
@@ -156,13 +149,6 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
     def __getitem__(self, idx):
         # Change data to fit diffusion policy
         buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
-        print("")
-        print("Index",idx)
-        print("Buffer start idx",buffer_start_idx)
-        print("Buffer end idx",buffer_end_idx)
-        print("Sample start idx",sample_start_idx)
-        print("Sample end idx",sample_end_idx)
-
 
         train_data = dict(
             obs_xyzw=self.obs["pointcloud"]["xyzw"],
@@ -180,21 +166,7 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
             sample_end_idx=sample_end_idx
         )
     
-        #result = dict(
-        #    obs=sampled['obs'],
-        #    action=sampled['action'],
-        #    terminated=self.terminated[idx],
-        #    truncated=self.truncated[idx],
-        #)
-        
-        #if self.rewards is not None:
-        #    result.update(reward=self.rewards[idx])
-        #if self.success is not None:
-        #    result.update(success=self.success[idx])
-        #if self.fail is not None:
-        #    result.update(fail=self.fail[idx])
-            
-        # discard unused observations
+        # discard unused observations in the sequence
         sampled['obs_xyzw'] = sampled['obs_xyzw'][:self.obs_horizon,:]
         sampled['obs_rgb'] = sampled['obs_rgb'][:self.obs_horizon,:]
         sampled['obs_segmentation'] = sampled['obs_segmentation'][:self.obs_horizon,:]
@@ -205,11 +177,17 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         sampled['obs_segmentation'] = common.to_tensor(sampled['obs_segmentation'], device=self.device)
         sampled['actions'] = common.to_tensor(sampled['actions'], device=self.device)
 
-        print("PointcloudManiSkillTrajectoryDataset")
-        print("Result dict has keys:",sampled.keys())
-        print("obs_xyzw has shape:",sampled['obs_xyzw'].shape, "and type:", sampled['obs_xyzw'].dtype)
-        print("obs_rgb has shape:",sampled['obs_rgb'].shape, "and type:", sampled['obs_rgb'].dtype)
-        print("obs_segmentation has shape:",sampled['obs_segmentation'].shape, "and type:", sampled['obs_segmentation'].dtype)
-        print("actions has shape:",sampled['actions'].shape, "and type:", sampled['actions'].dtype)
+        if idx == 0:
+            print("")
+            print("Dataset info for sequence:",idx)
+            print("Sequence Buffer start idx",buffer_start_idx)
+            print("Sequence Buffer end idx",buffer_end_idx)
+            print("Sequence Sample start idx",sample_start_idx)
+            print("Sequence Sample end idx",sample_end_idx)
+            print("Result dict has keys:",sampled.keys())
+            print("Result obs_xyzw has shape:",sampled['obs_xyzw'].shape, "and type:", sampled['obs_xyzw'].dtype)
+            print("Result obs_rgb has shape:",sampled['obs_rgb'].shape, "and type:", sampled['obs_rgb'].dtype)
+            print("Result obs_segmentation has shape:",sampled['obs_segmentation'].shape, "and type:", sampled['obs_segmentation'].dtype)
+            print("Result actions has shape:",sampled['actions'].shape, "and type:", sampled['actions'].dtype)
 
         return sampled

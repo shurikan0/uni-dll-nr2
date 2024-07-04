@@ -13,6 +13,8 @@ def load_h5_data(data):
 
 
 def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_before: int = 0, pad_after: int = 0):
+    # Currently uses truncated as episode ends which is the end of the episode and not the end of the trajectory
+    # TODO: What to use as episode ends?
     indices = list()
     episode_length = 0
     episode_index = 1 # Start 1 for human readability
@@ -22,14 +24,6 @@ def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_be
             start_idx = 0 if i <= 0 else i - episode_length + 1
             min_start = -pad_before
             max_start = episode_length - sequence_length + pad_after
-            
-            print("New episode", episode_index)
-            print("Episode length", episode_length)
-            print("Start idx", start_idx)
-            print("Sequence length", sequence_length)
-            print("Min start", min_start)
-            print("Max start", max_start)
-            print("")
             
             # Create indices for each possible sequence in the episode
             for idx in range(min_start, max_start + 1):

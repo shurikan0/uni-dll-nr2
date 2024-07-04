@@ -30,4 +30,6 @@ dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
 
 first_batch = next(iter(dataloader))
 
+print(first_batch.keys())
+
 
