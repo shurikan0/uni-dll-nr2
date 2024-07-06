@@ -151,12 +151,15 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
 
         train_data = dict(
+            obs_agent_qpos=self.obs["agent"]["qpos"],
+            obs_agent_qvel=self.obs["agent"]["qvel"],
             obs_xyzw=self.obs["pointcloud"]["xyzw"],
             obs_rgb=self.obs["pointcloud"]["rgb"],
             obs_segmentation=self.obs["pointcloud"]["segmentation"],
             actions=self.actions,
         )
-        
+
+    
         sampled = sample_sequence(
             train_data=train_data, 
             sequence_length=self.pred_horizon,
@@ -167,11 +170,14 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         )
     
         # discard unused observations in the sequence
+        sampled['obs_agent_qpos'] = sampled['obs_agent_qpos'][:self.obs_horizon,:]
+        sampled['obs_agent_qvel'] = sampled['obs_agent_qvel'][:self.obs_horizon,:]
         sampled['obs_xyzw'] = sampled['obs_xyzw'][:self.obs_horizon,:]
         sampled['obs_rgb'] = sampled['obs_rgb'][:self.obs_horizon,:]
         sampled['obs_segmentation'] = sampled['obs_segmentation'][:self.obs_horizon,:]
 
-        
+        sampled['obs_agent_qpos'] = common.to_tensor(sampled['obs_agent_qpos'], device=self.device)
+        sampled['obs_agent_qvel'] = common.to_tensor(sampled['obs_agent_qvel'], device=self.device)
         sampled['obs_xyzw'] = common.to_tensor(sampled['obs_xyzw'], device=self.device)
         sampled['obs_rgb'] = common.to_tensor(sampled['obs_rgb'], device=self.device)
         sampled['obs_segmentation'] = common.to_tensor(sampled['obs_segmentation'], device=self.device)
@@ -185,6 +191,8 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
             print("Sequence Sample start idx",sample_start_idx)
             print("Sequence Sample end idx",sample_end_idx)
             print("Result dict has keys:",sampled.keys())
+            print("Result obs_agent_qpos has shape:",sampled['obs_agent_qpos'].shape, "and type:", sampled['obs_agent_qpos'].dtype)
+            print("Result obs_agent_qvel has shape:",sampled['obs_agent_qvel'].shape, "and type:", sampled['obs_agent_qvel'].dtype)
             print("Result obs_xyzw has shape:",sampled['obs_xyzw'].shape, "and type:", sampled['obs_xyzw'].dtype)
             print("Result obs_rgb has shape:",sampled['obs_rgb'].shape, "and type:", sampled['obs_rgb'].dtype)
             print("Result obs_segmentation has shape:",sampled['obs_segmentation'].shape, "and type:", sampled['obs_segmentation'].dtype)
