@@ -12,7 +12,15 @@
 #### Colab:
 - Link to our Google Colab: [here](https://colab.research.google.com/drive/1XDIHM5ddc5DpQGozea0QeawgApQdqWsj?usp=sharing)
 
-#### Setup
+#### Use generate.sh to generate CustomEnv Data
+- Open the Terminal and cd into the git directory
+- Make sure to include your environments in the generate.sh script
+```
+chmod +x generate.sh
+sh generate.sh
+```
+
+#### Make environment
 - Open the Terminal and cd into the git directory
 ```
 python -m venv myenv
