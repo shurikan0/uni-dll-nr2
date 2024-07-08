@@ -8,7 +8,7 @@ from mani_skill.utils import common
 from mani_skill.utils.io_utils import load_json
 
 
-class PointCloudManiSkillTrajectoryDataset(Dataset):
+class NormalTrajectoryDataset(Dataset):
     """
     A general torch Dataset you can drop in and use immediately with just about any trajectory .h5 data generated from ManiSkill.
     This class simply is a simple starter code to load trajectory data easily, but does not do any data transformation or anything

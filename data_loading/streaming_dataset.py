@@ -8,7 +8,7 @@ from mani_skill.utils.io_utils import load_json
 import torch
 
 
-class TrajectoryDataset(IterableDataset):
+class StreamingTrajectoryDataset(IterableDataset):
     """
     A general torch Dataset you can drop in and use immediately with just about any trajectory .h5 data generated from ManiSkill.
     This class simply is a simple starter code to load trajectory data easily, but does not do any data transformation or anything

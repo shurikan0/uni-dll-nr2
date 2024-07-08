@@ -1,7 +1,7 @@
-from pointcloud_dataset import PointCloudManiSkillTrajectoryDataset
+from data_loading.normal_dataset import NormalTrajectoryDataset
 from torch.utils.data import DataLoader
 
-from streaming_dataset import TrajectoryDataset
+from streaming_dataset import StreamingTrajectoryDataset
 
 #ManiSkill File
 dataset_file = 'data/trajectory.rgbd.pd_ee_delta_pos.h5'
@@ -21,8 +21,8 @@ action_horizon = 8
 
 
 # create dataset from file
-dataset = PointCloudManiSkillTrajectoryDataset(dataset_file, pred_horizon, obs_horizon, action_horizon, load_count, succes_only, normalize)
-dataset2 = TrajectoryDataset(dataset_file, pred_horizon, obs_horizon, action_horizon, normalize)
+dataset = NormalTrajectoryDataset(dataset_file, pred_horizon, obs_horizon, action_horizon, load_count, succes_only, normalize)
+dataset2 = StreamingTrajectoryDataset(dataset_file, pred_horizon, obs_horizon, action_horizon, normalize)
 
 # Debugging
 # Dataset should be 3dim (batch, sequence, features)
