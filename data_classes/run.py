@@ -1,4 +1,4 @@
-from pointCloudDataClass import PointCloudManiSkillTrajectoryDataset
+from data_classes.pointcloud_dataset import PointCloudManiSkillTrajectoryDataset
 from torch.utils.data import DataLoader
 
 #ManiSkill File

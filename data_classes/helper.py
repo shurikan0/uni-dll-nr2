@@ -1,3 +1,4 @@
+from typing import Union
 import h5py
 import numpy as np
 
@@ -76,3 +77,14 @@ def normalize_data(obs, terminated):
             episode_min = i + 1
         else:
             episode_max = i
+
+def remove_np_uint16(x: Union[np.ndarray, dict]):
+            if isinstance(x, dict):
+                for k in x.keys():
+                    x[k] = remove_np_uint16(x[k])
+                return x
+            else:
+                if x.dtype == np.uint16:
+                    return x.astype(np.int32)
+                return x
+            
