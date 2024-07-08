@@ -1,6 +1,7 @@
 from typing import Union
 import h5py
 import numpy as np
+import torch
 
 # loads h5 data into memory for faster access
 def load_h5_data(data):
@@ -46,7 +47,10 @@ def sample_sequence(train_data, sequence_length, buffer_start_idx, buffer_end_id
         sample = input_arr[buffer_start_idx:buffer_end_idx]
         data = sample
         if (sample_start_idx > 0) or (sample_end_idx < sequence_length):
-            data = np.zeros(shape=(sequence_length,) + input_arr.shape[1:], dtype=input_arr.dtype)
+            if isinstance(input_arr, torch.Tensor):
+                data = torch.zeros((sequence_length,) + input_arr.shape[1:], dtype=input_arr.dtype)
+            else: 
+                data = np.zeros(shape=(sequence_length,) + input_arr.shape[1:], dtype=input_arr.dtype)
             if sample_start_idx > 0:
                 data[:sample_start_idx] = sample[0]
             if sample_end_idx < sequence_length:
