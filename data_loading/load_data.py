@@ -27,6 +27,7 @@ with h5py.File(dataset_file, 'r') as file:
 	for x in episode0['obs'][sensor_data].keys():
 		print(x)
 		print(episode0['obs'][sensor_data][x].keys())
+		print(episode0['obs'][sensor_data][x]['rgb'])
 
 
 

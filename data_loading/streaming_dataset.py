@@ -144,7 +144,7 @@ class TrajectoryDataset(IterableDataset):
                     for k in sampled.keys():
                         if k != "actions":
                             # discard unused observations in the sequence
-                            sampled[k] = sampled[k][:self.pred_horizon,:]
+                            sampled[k] = sampled[k][:self.obs_horizon,:]
                     sampled[k] = common.to_tensor(sampled[k], device=self.device)
             
                     yield sampled

@@ -169,6 +169,7 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
             for k in self.obs["sensor_data"].keys():
                 for kk in self.obs["sensor_data"][k].keys():
                     train_data[f"obs_{k}_{kk}"] = self.obs["sensor_data"][k][kk]
+                    print(f"obs_{k}_{kk}", self.obs["sensor_data"][k][kk])
                        
                   
 
@@ -186,7 +187,7 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         for k in sampled.keys():
             if k != "actions":
                 # discard unused observations in the sequence
-                sampled[k] = sampled[k][:self.pred_horizon,:]
+                sampled[k] = sampled[k][:self.obs_horizon,:]
         sampled[k] = common.to_tensor(sampled[k], device=self.device)
     
         return sampled

@@ -42,10 +42,10 @@ print(first_batch2.keys())
 #    print(batch_count)
 #    batch_count += 1
 
-#batch_count2 = 0
-#for batch in iter(dataloader2):
-#    print(batch_count2)
-#    batch_count2 += 1
+batch_count2 = 0
+for batch in iter(dataloader2):
+    print(batch["obs_base_camera_rgb"].shape)
+    batch_count2 += 1
     
 
 
