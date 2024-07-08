@@ -13,7 +13,8 @@ class TrajectoryDataset(IterableDataset):
     A general torch Dataset you can drop in and use immediately with just about any trajectory .h5 data generated from ManiSkill.
     This class simply is a simple starter code to load trajectory data easily, but does not do any data transformation or anything
     advanced. We recommend you to copy this code directly and modify it for more advanced use cases
-    Implements the IterableDataset class for PyTorch to allow for streaming data loading. Currently only supports PointCloud data.
+    Implements the IterableDataset class for PyTorch to allow for streaming data loading. 
+    Currently only supports PointCloud and RGBD data.
     
     Args:
         dataset_file (str): path to the .h5 file containing the data you want to load
@@ -111,17 +112,27 @@ class TrajectoryDataset(IterableDataset):
 
                 for idx in indices:
                     buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = idx
-               
-                    train_data = dict(
-                        obs_agent_qpos=obs["agent"]["qpos"],
-                        obs_agent_qvel=obs["agent"]["qvel"],
-                        obs_xyzw=obs["pointcloud"]["xyzw"],
-                        obs_rgb=obs["pointcloud"]["rgb"],
-                        obs_segmentation=obs["pointcloud"]["segmentation"],
-                        actions=actions,
-                    )
 
-    
+                    if self.is_pointcloud:
+                        train_data = dict(
+                            obs_agent_qpos=obs["agent"]["qpos"],
+                            obs_agent_qvel=obs["agent"]["qvel"],
+                            obs_xyzw=obs["pointcloud"]["xyzw"],
+                            obs_rgb=obs["pointcloud"]["rgb"],
+                            obs_segmentation=obs["pointcloud"]["segmentation"],
+                            actions=actions,
+                        )
+                    else:
+                        train_data = dict(
+                            obs_agent_qpos=obs["agent"]["qpos"],
+                            obs_agent_qvel=obs["agent"]["qvel"],
+                            actions=actions,
+                        )
+                        for k in obs["sensor_data"].keys():
+                            for kk in obs["sensor_data"][k].keys():
+                                train_data[f"obs_{k}_{kk}"] = obs["sensor_data"][k][kk]
+                       
+                  
                     sampled = sample_sequence(
                         train_data=train_data, 
                         sequence_length=self.pred_horizon,

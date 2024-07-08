@@ -4,9 +4,9 @@ from torch.utils.data import DataLoader
 from streaming_dataset import TrajectoryDataset
 
 #ManiSkill File
-dataset_file = 'data/trajectory.pointcloud.pd_joint_delta_pos.h5'
+dataset_file = 'data/trajectory.rgbd.pd_ee_delta_pos.h5'
 
-load_count = -1 # Load all episodes
+load_count = 20 # Load all episodes
 succes_only = False # Load all episodes regardless of success
 normalize = False # Normalization not working yet
 
@@ -28,21 +28,24 @@ dataset2 = TrajectoryDataset(dataset_file, pred_horizon, obs_horizon, action_hor
 # Dataset should be 3dim (batch, sequence, features)
 # Can be used by Diffusion policy
 
-dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
-dataloader2 = DataLoader(dataset2, batch_size=10, num_workers=4)
+dataloader = DataLoader(dataset, batch_size=None, shuffle=True)
+dataloader2 = DataLoader(dataset2, batch_size=1000, num_workers=4)
 
 first_batch = next(iter(dataloader))
 first_batch2 = next(iter(dataloader2))
 
-batch_count = 0
-for batch in iter(dataloader):
-    print(batch_count)
-    batch_count += 1
+print(first_batch.keys())
+print(first_batch2.keys())
 
-batch_count2 = 0
-for batch in iter(dataloader2):
-    print(batch_count2)
-    batch_count2 += 1
+#batch_count = 0
+#for batch in iter(dataloader):
+#    print(batch_count)
+#    batch_count += 1
+
+#batch_count2 = 0
+#for batch in iter(dataloader2):
+#    print(batch_count2)
+#    batch_count2 += 1
     
 
 

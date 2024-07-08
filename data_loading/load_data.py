@@ -1,6 +1,6 @@
 import h5py
 
-dataset_file = "data/trajectory.pointcloud.pd_joint_delta_pos.h5"
+dataset_file = "data/trajectory.rgbd.pd_ee_delta_pos.h5"
 #Open the H5 file in read mode
 with h5py.File(dataset_file, 'r') as file:
 	print("Keys: %s" % file.keys())
@@ -23,17 +23,10 @@ with h5py.File(dataset_file, 'r') as file:
 	print("Episode terminated: %s" % episode0['terminated'])
 	print("Episode truncated: %s" % episode0['truncated'])
 	print("Observation keys: %s" % episode0['obs'].keys())
-	for x in episode0['obs']['pointcloud']:
+	sensor_data = "sensor_data"
+	for x in episode0['obs'][sensor_data].keys():
 		print(x)
-		print(episode0['obs']['pointcloud'][x].shape)
+		print(episode0['obs'][sensor_data][x].keys())
 
-	print(episode0['obs']['pointcloud']["xyzw"][0].shape)
-	print(episode0['obs']['pointcloud']["xyzw"][74].shape)
-	print(episode1['obs']['pointcloud']["xyzw"][0].shape)
-	print(episode1['obs']['pointcloud']["xyzw"][40].shape)
-	print(episode2['obs']['pointcloud']["xyzw"][0].shape)
-	print(episode2['obs']['pointcloud']["xyzw"][40].shape)
-	print(episode3['obs']['pointcloud']["xyzw"][0].shape)
-	print(episode3['obs']['pointcloud']["xyzw"][40].shape)
 
 

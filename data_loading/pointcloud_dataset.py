@@ -37,6 +37,7 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         self.env_info = self.json_data["env_info"]
         self.env_id = self.env_info["env_id"]
         self.env_kwargs = self.env_info["env_kwargs"]
+        self.is_pointcloud = dataset_file.find("pointcloud") != -1
 
         self.obs = None
         self.actions = []
@@ -150,14 +151,26 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         # Change data to fit diffusion policy
         buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
 
-        train_data = dict(
+        if self.is_pointcloud:
+            train_data = dict(
+                obs_agent_qpos=self.obs["agent"]["qpos"],
+                obs_agent_qvel=self.obs["agent"]["qvel"],
+                obs_xyzw=self.obs["pointcloud"]["xyzw"],
+                obs_rgb=self.obs["pointcloud"]["rgb"],
+                obs_segmentation=self.obs["pointcloud"]["segmentation"],
+                actions=self.actions,
+            )
+        else:
+            train_data = dict(
             obs_agent_qpos=self.obs["agent"]["qpos"],
             obs_agent_qvel=self.obs["agent"]["qvel"],
-            obs_xyzw=self.obs["pointcloud"]["xyzw"],
-            obs_rgb=self.obs["pointcloud"]["rgb"],
-            obs_segmentation=self.obs["pointcloud"]["segmentation"],
             actions=self.actions,
-        )
+            )
+            for k in self.obs["sensor_data"].keys():
+                for kk in self.obs["sensor_data"][k].keys():
+                    train_data[f"obs_{k}_{kk}"] = self.obs["sensor_data"][k][kk]
+                       
+                  
 
     
         sampled = sample_sequence(
@@ -170,32 +183,10 @@ class PointCloudManiSkillTrajectoryDataset(Dataset):
         )
     
         # discard unused observations in the sequence
-        sampled['obs_agent_qpos'] = sampled['obs_agent_qpos'][:self.obs_horizon,:]
-        sampled['obs_agent_qvel'] = sampled['obs_agent_qvel'][:self.obs_horizon,:]
-        sampled['obs_xyzw'] = sampled['obs_xyzw'][:self.obs_horizon,:]
-        sampled['obs_rgb'] = sampled['obs_rgb'][:self.obs_horizon,:]
-        sampled['obs_segmentation'] = sampled['obs_segmentation'][:self.obs_horizon,:]
-
-        sampled['obs_agent_qpos'] = common.to_tensor(sampled['obs_agent_qpos'], device=self.device)
-        sampled['obs_agent_qvel'] = common.to_tensor(sampled['obs_agent_qvel'], device=self.device)
-        sampled['obs_xyzw'] = common.to_tensor(sampled['obs_xyzw'], device=self.device)
-        sampled['obs_rgb'] = common.to_tensor(sampled['obs_rgb'], device=self.device)
-        sampled['obs_segmentation'] = common.to_tensor(sampled['obs_segmentation'], device=self.device)
-        sampled['actions'] = common.to_tensor(sampled['actions'], device=self.device)
-
-        if idx == 0:
-            print("")
-            print("Dataset info for sequence:",idx)
-            print("Sequence Buffer start idx",buffer_start_idx)
-            print("Sequence Buffer end idx",buffer_end_idx)
-            print("Sequence Sample start idx",sample_start_idx)
-            print("Sequence Sample end idx",sample_end_idx)
-            print("Result dict has keys:",sampled.keys())
-            print("Result obs_agent_qpos has shape:",sampled['obs_agent_qpos'].shape, "and type:", sampled['obs_agent_qpos'].dtype)
-            print("Result obs_agent_qvel has shape:",sampled['obs_agent_qvel'].shape, "and type:", sampled['obs_agent_qvel'].dtype)
-            print("Result obs_xyzw has shape:",sampled['obs_xyzw'].shape, "and type:", sampled['obs_xyzw'].dtype)
-            print("Result obs_rgb has shape:",sampled['obs_rgb'].shape, "and type:", sampled['obs_rgb'].dtype)
-            print("Result obs_segmentation has shape:",sampled['obs_segmentation'].shape, "and type:", sampled['obs_segmentation'].dtype)
-            print("Result actions has shape:",sampled['actions'].shape, "and type:", sampled['actions'].dtype)
-
+        for k in sampled.keys():
+            if k != "actions":
+                # discard unused observations in the sequence
+                sampled[k] = sampled[k][:self.pred_horizon,:]
+        sampled[k] = common.to_tensor(sampled[k], device=self.device)
+    
         return sampled
