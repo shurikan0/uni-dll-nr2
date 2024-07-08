@@ -13,9 +13,13 @@ class TrajectoryDataset(IterableDataset):
     A general torch Dataset you can drop in and use immediately with just about any trajectory .h5 data generated from ManiSkill.
     This class simply is a simple starter code to load trajectory data easily, but does not do any data transformation or anything
     advanced. We recommend you to copy this code directly and modify it for more advanced use cases
-
+    Implements the IterableDataset class for PyTorch to allow for streaming data loading. Currently only supports PointCloud data.
+    
     Args:
         dataset_file (str): path to the .h5 file containing the data you want to load
+        pred_horizon (int): the number of steps to predict into the future
+        obs_horizon (int): the number of steps to observe in the past
+        action_horizon (int): the number of steps to execute actions in the future
         device: The location to save data to. If None will store as numpy (the default), otherwise will move data to that device
     """
 
