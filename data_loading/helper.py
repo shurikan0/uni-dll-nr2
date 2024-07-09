@@ -59,29 +59,6 @@ def sample_sequence(train_data, sequence_length, buffer_start_idx, buffer_end_id
         result[key] = data
     return result
 
-# normalize data
-def get_data_stats(data):
-  data = data.reshape(-1,data.shape[-1])
-  stats = {
-    'min': np.min(data, axis=0),
-    'max': np.max(data, axis=0)
-  }
-  return stats
-
-def normalize_data(obs, terminated):
-    episode_min = 0
-    episode_max = 0
-    for i in range(len(terminated)):
-        if terminated[i]:
-            episode_max = i
-            if episode_min != episode_max:   
-                counter = (obs[episode_min:episode_max] - obs[episode_min:episode_max].min(axis=0))
-                divider = (obs[episode_min:episode_max].max(axis=0) - obs[episode_min:episode_max].min(axis=0))
-                obs[episode_min:episode_max] =  counter / divider
-            episode_min = i + 1
-        else:
-            episode_max = i
-
 def remove_np_uint16(x: Union[np.ndarray, dict]):
             if isinstance(x, dict):
                 for k in x.keys():

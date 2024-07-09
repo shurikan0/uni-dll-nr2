@@ -138,11 +138,6 @@ class NormalTrajectoryDataset(Dataset):
             pad_after=self.action_horizon - 1
         )
 
-        # normalize observations between -1 and 1
-        if self.normalize:
-            self.obs = normalize_data(self.obs, self.terminated)
-        
-
     def __len__(self):
         # all possible sequenzes of the dataset
         return len(self.indices)
@@ -169,7 +164,7 @@ class NormalTrajectoryDataset(Dataset):
             for k in self.obs["sensor_data"].keys():
                 for kk in self.obs["sensor_data"][k].keys():
                     train_data[f"obs_{k}_{kk}"] = self.obs["sensor_data"][k][kk]
-                    print(f"obs_{k}_{kk}", self.obs["sensor_data"][k][kk])
+                
                        
                   
 

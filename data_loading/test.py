@@ -1,4 +1,4 @@
-from data_loading.normal_dataset import NormalTrajectoryDataset
+from normal_dataset import NormalTrajectoryDataset
 from torch.utils.data import DataLoader
 
 from streaming_dataset import StreamingTrajectoryDataset
@@ -29,23 +29,18 @@ dataset2 = StreamingTrajectoryDataset(dataset_file, pred_horizon, obs_horizon, a
 # Can be used by Diffusion policy
 
 dataloader = DataLoader(dataset, batch_size=None, shuffle=True)
-dataloader2 = DataLoader(dataset2, batch_size=1000, num_workers=4)
+dataloader2 = DataLoader(dataset2, batch_size=None, num_workers=4)
 
-first_batch = next(iter(dataloader))
-first_batch2 = next(iter(dataloader2))
-
-print(first_batch.keys())
-print(first_batch2.keys())
-
-#batch_count = 0
-#for batch in iter(dataloader):
-#    print(batch_count)
-#    batch_count += 1
+batch_count = 0
+for batch in iter(dataloader):
+    batch_count += 1
 
 batch_count2 = 0
 for batch in iter(dataloader2):
-    print(batch["obs_base_camera_rgb"].shape)
     batch_count2 += 1
+
+print("Dataset 1",batch_count)
+print("Dataset 2",batch_count2)
     
 
 
