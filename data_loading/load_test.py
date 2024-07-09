@@ -1,6 +1,6 @@
 import h5py
 
-dataset_file = "data/trajectory.rgbd.pd_ee_delta_pos.h5"
+dataset_file = "data/pickcube2camera10.rgbd.pd_ee_delta_pos.h5"
 #Open the H5 file in read mode
 with h5py.File(dataset_file, 'r') as file:
 	print("Keys: %s" % file.keys())
