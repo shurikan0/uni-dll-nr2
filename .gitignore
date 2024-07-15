@@ -163,4 +163,4 @@ cython_debug/
 #.idea/
 
 # Data folder
-data/
+/no_commit
