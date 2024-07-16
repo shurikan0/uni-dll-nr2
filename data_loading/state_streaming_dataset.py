@@ -8,7 +8,7 @@ from mani_skill.utils.io_utils import load_json
 import torch
 
 
-class StreamingTrajectoryDataset(IterableDataset):
+class StateStreamingDataset(IterableDataset):
     """
     A general torch Dataset you can drop in and use immediately with just about any trajectory .h5 data generated from ManiSkill.
     This class simply is a simple starter code to load trajectory data easily, but does not do any data transformation or anything
@@ -112,11 +112,16 @@ class StreamingTrajectoryDataset(IterableDataset):
                 for idx in indices:
                     buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = idx
 
-                   
+                    print(obs.keys())
+                    print(obs["extra"].keys())
+                    print(obs["agent"].keys())
                     train_data = dict(
                         tcp_pose=obs["extra"]["tcp_pose"],
                         obj_pose=obs["extra"]["obj_pose"],
                         goal_pos=obs["extra"]["goal_pos"],
+                        #is_grasped=obs["extra"]["is_grasped"],
+                        #tcp_to_obj_pos=obs["extra"]["tcp_to_obj_pos"],
+                        #obj_to_goal_pos=obs["extra"]["obj_to_goal_pos"],
                         qpos=obs["agent"]["qpos"],
                         qvel=obs["agent"]["qvel"],
                         actions=actions,
