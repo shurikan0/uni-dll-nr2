@@ -1,6 +1,6 @@
 import numpy as np
 from mani2_streaming_dataset import StreamingTrajectoryDataset2
-from normal_dataset import NormalTrajectoryDataset
+from normal_dataset import StateNormalDataset
 from torch.utils.data import DataLoader
 
 from streaming_dataset import StreamingTrajectoryDataset
@@ -27,7 +27,7 @@ action_horizon = 8
 
 
 # create dataset from file
-dataset = NormalTrajectoryDataset(
+dataset = StateNormalDataset(
     dataset_file1,
     pred_horizon,
     obs_horizon,
