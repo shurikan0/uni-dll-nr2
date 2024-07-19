@@ -6,12 +6,14 @@ import numpy as np
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from diffusers.training_utils import EMAModel
 from diffusers.optimization import get_scheduler
+import os
 
 from data_loading.state_dataset import StateDataset
 from unet_module import ConditionalUnet1D
 
 # Parameters
-dataset_path = '../Data/Training/Generated/PickCube-v1/motionplanning/data1000_all.state_dict.pd_ee_delta_pos.h5'
+dataset_path = '../Data/Training/Generated/PickCube-v1/motionplanning/data1000.state_dict.pd_joint_pos.h5'
+model_path = "../Data/Checkpoints/model_pickcube_state_dict_pd_joint_pos.pt"
 pred_horizon = 16
 obs_horizon = 2
 action_horizon = 8
@@ -124,3 +126,16 @@ with tqdm(range(num_epochs), desc='Epoch') as tglobal:
 
 ema_noise_pred_net = noise_pred_net
 ema.copy_to(ema_noise_pred_net.parameters())
+
+# Ensure the directory exists
+os.makedirs(os.path.dirname(model_path), exist_ok=True)
+
+# Save the model, optimizer, and scheduler states
+torch.save({
+    'model_state_dict': ema_noise_pred_net.state_dict(),
+    'ema_model_state_dict': ema.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    'lr_scheduler_state_dict': lr_scheduler.state_dict(),
+    'epoch': epoch_idx,
+    'loss': np.mean(epoch_loss),  # Save the average loss of the last epoch
+}, model_path)
