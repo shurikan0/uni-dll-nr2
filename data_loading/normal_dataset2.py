@@ -1,19 +1,20 @@
-from torch.utils.data import Dataset
-from mani_skill.utils import common
-from mani_skill.utils.io_utils import load_json
 import h5py
-from tqdm import tqdm
 import numpy as np
-# loads h5 data into memory for faster access
-from torch import dtype
-import numpy as np
-import h5py
-from collections import OrderedDict
-from typing import Union
 import torch
+from torch.utils.data import Dataset
+from tqdm import tqdm
+from mani_skill.utils.io_utils import load_json
+from mani_skill.utils import common
 
 
+import h5py
+import numpy as np
+import torch
+from torch.utils.data import Dataset
+from tqdm import tqdm
+from typing import Union
 
+# loads h5 data into memory for faster access
 def load_h5_data(data):
     out = dict()
     for k in data.keys():
@@ -26,6 +27,7 @@ def load_h5_data(data):
 
 def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_before: int = 0, pad_after: int = 0):
     # Currently uses truncated as episode ends which is the end of the episode and not the end of the trajectory
+    # TODO: What to use as episode ends?
     indices = list()
     episode_length = 0
     episode_index = 1 # Start 1 for human readability
@@ -78,122 +80,60 @@ def remove_np_uint16(x: Union[np.ndarray, dict]):
                     return x.astype(np.int32)
                 return x
 
-def convert_observation(obs, task_id):
-    # adds task_id to the observation
-    values = list(obs.values())
-    task_id = np.full((values[0].shape[0], 1), task_id, dtype=values[0].dtype) 
-    values.append(task_id)
-
-    # concatenate all the values
-    return np.concatenate(values, axis=-1)
+def convert_observation(obs):
+    return np.concatenate(list(obs.values()), axis=-1)
 
 def get_observations(obs):
-    #ensoure that the observations are in the correct format
-    #and ordered correctly across tasks
-
-    cleaned_obs = OrderedDict()
-    cleaned_obs["qpos"] = obs["agent"]["qpos"]
-    cleaned_obs["qvel"] = obs["agent"]["qvel"]
-    cleaned_obs["tcp_pose"] = obs["extra"]["tcp_pose"]
-    obs["extra"].pop("tcp_pose")
-
-    #this code is not generic and only works for the specific observation spaces we have
-    # Handle different goal position formats gracefully
-    goal_pose_keys = ["goal_pose", "goal_pos", "box_hole_pos", "cubeB_pose"]
-    for key in goal_pose_keys:
-        if key in obs["extra"]:
-            pos = obs["extra"][key]
-
-            # Ensure 'pos' is 2D with the correct number of columns
-            if pos.ndim == 1:
-                pos = pos.reshape(1, -1)  # Reshape to 2D if necessary
-            elif pos.ndim > 2:
-                raise ValueError(f"Unexpected dimensions for '{key}': {pos.shape}")
-
-            # Pad or truncate 'pos' to have 7 columns
-            num_rows = pos.shape[0]
-            pos = np.pad(pos[:, :7], ((0, 0), (0, 7 - pos.shape[1])), mode='constant')
-
-            cleaned_obs["goal_pose"] = pos
-            obs["extra"].pop(key)
-            break  # Stop once a valid goal pose key is found
-    else:
-        print("No goal pose found. Setting to zero.")
-        length = len(obs["extra"]["tcp_pose"])
-        cleaned_obs["goal_pose"] = np.zeros((length, 7), dtype=torch.float64)  # Ensure 2D shape
-        
+    #print(obs.keys())
+    #print(obs["extra"].keys())
+    #print(obs["agent"].keys())
+    #dict_keys(['agent', 'extra'])
+    #dict_keys(['tcp_pose', 'cubeA_pose', 'cubeB_pose', 'tcp_to_cubeA_pos', 'tcp_to_cubeB_pos', 'cubeA_to_cubeB_pos'])
+    #dict_keys(['qpos', 'qvel'])
     #is_grasped_reshaped = np.reshape(obs["extra"]["is_grasped"], (len(obs["extra"]["is_grasped"]), 1))
-    
-    # Filter and add other observations with 7 columns
-    for key, value in obs["extra"].items():
-        if value.shape[-1] == 7 and value.ndim == 2:
-            cleaned_obs[key] = value
-    
-    return cleaned_obs
+    return dict(
+        tcp_pose=obs["extra"]["tcp_pose"],
+        obj_pose=obs["extra"]["obj_pose"],
+        goal_pos=obs["extra"]["goal_pos"],
+        # is_grasped=is_grasped_reshaped,
+        #tcp_to_obj_pos=obs["extra"]["tcp_to_obj_pos"],
+        #obj_to_goal_pos=obs["extra"]["obj_to_goal_pos"],
+        qpos=obs["agent"]["qpos"],
+        qvel=obs["agent"]["qvel"],
+    )
 
-def get_data_stats(data, obs_mask: bool = False):
+def get_data_stats(data):
     data = data.reshape(-1,data.shape[-1])
-
-    # Create a mask to exclude the specified values from normalization
-    mask = np.ones_like(data[0], dtype=bool)
-    if obs_mask:
-        mask[28] = False
-        mask[29] = False
-        mask[30] = False
-        mask[31] = False
-        mask[39] = False
-    
-    # Filter data to exclude specified values
-    mask = np.repeat(mask[np.newaxis, :], data.shape[0], axis=0)
-    mask = np.where(mask, 0, 1)
-    masked_data = np.ma.masked_array(data, mask) # Apply mask to data
-
     stats = {
-        'min': np.min(masked_data.data, axis=0),
-        'max': np.max(masked_data.data, axis=0),
-        'mask': mask,
+        'min': np.min(data, axis=0),
+        'max': np.max(data, axis=0)
     }
-
     return stats
 
 def normalize_data(data, stats):
-    # Calculate the denominator for normalization
-    denominator = stats['max'] - stats['min']
-    denominator[denominator == 0] = 1
-
     # nomalize to [0,1]
-    ndata = (data - stats['min']) / denominator
-
+    ndata = (data - stats['min']) / (stats['max'] - stats['min'])
     # normalize to [-1, 1]
     ndata = ndata * 2 - 1
 
-    # Set masked values to original values
-    ndata = np.where(stats['mask'], data, ndata)
-    #print("Unnormalized NEW")
-    #print(data[0])
-    #print("Stats NEW")
-    #print(stats['max'])
-    #print(stats['min'])
-    #print("Normalized Data NEW")
-    #print(ndata[0])
+    print("Unnormalized OLD")
+    print(data[0])
+    print("Stats OLD")
+    print(stats['max'])
+    print(stats['min'])
+    print("Normalized Data OLD")
+    print(ndata[0])
     return ndata
 
-def unnormalize_data(ndata, stats):
+def unnormalize_data2(ndata, stats):
     ndata = (ndata + 1) / 2
     data = ndata * (stats['max'] - stats['min']) + stats['min']
-
-    # Set masked values to original values
-    mask = data[:,:, stats['mask'][0]]
-    data = np.where(mask, data, ndata)
-
-    #print("Unnormalized NEW AGAIN")
-    #print(data[0][0])
+    print("Unnormalized OLD AGAIN")
+    print(data[0][0])
     return data
 
 
-
-
-class StateNormalDataset(Dataset):
+class StateDataset2(Dataset):
     """
     A general torch Dataset you can drop in and use immediately with just about any trajectory .h5 data generated from ManiSkill.
     This class simply is a simple starter code to load trajectory data easily, but does not do any data transformation or anything
@@ -207,13 +147,13 @@ class StateNormalDataset(Dataset):
     """
 
     def __init__(
-        self, dataset_file: str, pred_horizon: int, obs_horizon: int, action_horizon:int, task_id: np.float64, load_count=-1, device=None
+        self, dataset_file: str, pred_horizon: int, obs_horizon: int, action_horizon:int, load_count=-1, success_only: bool = False, normalize: bool = False, device=None
     ) -> None:
         self.dataset_file = dataset_file
         self.pred_horizon = pred_horizon
         self.obs_horizon = obs_horizon
         self.action_horizon = action_horizon
-        self.task_id = task_id
+        self.normalize = normalize
         self.device = device
         self.data = h5py.File(dataset_file, "r")
         json_path = dataset_file.replace(".h5", ".json")
@@ -222,6 +162,7 @@ class StateNormalDataset(Dataset):
         self.env_info = self.json_data["env_info"]
         self.env_id = self.env_info["env_id"]
         self.env_kwargs = self.env_info["env_kwargs"]
+        self.is_pointcloud = dataset_file.find("pointcloud") != -1
 
         self.obs = None
         self.actions = []
@@ -232,11 +173,12 @@ class StateNormalDataset(Dataset):
             load_count = len(self.episodes)
         for eps_id in tqdm(range(load_count), desc="Loading Episodes", colour="green"):
             eps = self.episodes[eps_id]
-            assert (
-                "success" in eps
-            ), "episodes in this dataset do not have the success attribute, cannot load dataset with success_only=True"
-            if not eps["success"]:
-                continue
+            if success_only:
+                assert (
+                    "success" in eps
+                ), "episodes in this dataset do not have the success attribute, cannot load dataset with success_only=True"
+                if not eps["success"]:
+                    continue
             trajectory = self.data[f"traj_{eps['episode_id']}"]
             trajectory = load_h5_data(trajectory)
             eps_len = len(trajectory["actions"])
@@ -272,10 +214,10 @@ class StateNormalDataset(Dataset):
         self.actions = np.vstack(self.actions)
         self.terminated = np.concatenate(self.terminated)
         self.truncated = np.concatenate(self.truncated)
-        
+
         self.truncated = np.zeros(self.actions.shape[0], dtype=bool)
         self.truncated[-1] = True
-        
+
         if self.rewards is not None:
             self.rewards = np.concatenate(self.rewards)
         if self.success is not None:
@@ -298,7 +240,7 @@ class StateNormalDataset(Dataset):
         # dtype of data yourself. for simplicity we simply cast to a int32 so
         # it can automatically be converted to torch tensors without complaint
         self.obs = remove_np_uint16(self.obs)
-        
+
         if device is not None:
             self.actions = common.to_tensor(self.actions, device=device)
             self.obs = common.to_tensor(self.obs, device=device)
@@ -310,19 +252,19 @@ class StateNormalDataset(Dataset):
                 self.success = common.to_tensor(self.terminated, device=device)
             if self.fail is not None:
                 self.fail = common.to_tensor(self.truncated, device=device)
-        
+
 
 
         # Added code for diffusion policy
         obs_dict = get_observations(self.obs)
         train_data = dict(
-                        obs=convert_observation(obs_dict, self.task_id),
+                        obs=convert_observation(obs_dict),
                         actions=self.actions,
                         )
 
          # Initialize index lists and stat dicts
         self.indices = create_sample_indices(
-            episode_ends=self.truncated, 
+            episode_ends=self.truncated,
             sequence_length=self.pred_horizon,
             pad_before=self.obs_horizon - 1,
             pad_after=self.action_horizon - 1
@@ -331,13 +273,9 @@ class StateNormalDataset(Dataset):
         stats = dict()
         normalized_train_data = dict()
         for key, data in train_data.items():
-            if key == "actions":
-                stats[key] = get_data_stats(data)
-            else:
-                stats[key] = get_data_stats(data, True)
-            
+            stats[key] = get_data_stats(data)
             normalized_train_data[key] = normalize_data(data, stats[key])
-  
+
         self.normalized_train_data = normalized_train_data
         self.stats = stats
 
@@ -349,16 +287,16 @@ class StateNormalDataset(Dataset):
         # Change data to fit diffusion policy
         buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx = self.indices[idx]
 
-    
+
         sampled = sample_sequence(
-            train_data=self.normalized_train_data, 
+            train_data=self.normalized_train_data,
             sequence_length=self.pred_horizon,
             buffer_start_idx=buffer_start_idx,
             buffer_end_idx=buffer_end_idx,
             sample_start_idx=sample_start_idx,
             sample_end_idx=sample_end_idx
         )
-    
+
         # discard unused observations in the sequence
         for k in sampled.keys():
             if k != "actions":

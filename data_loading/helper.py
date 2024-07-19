@@ -77,6 +77,7 @@ def convert_observation(obs, task_id):
     values = list(obs.values())
     task_id = np.full((values[0].shape[0], 1), task_id, dtype=values[0].dtype) 
     values.append(task_id)
+
     # concatenate all the values
     return np.concatenate(values, axis=-1)
 
@@ -124,22 +125,61 @@ def get_observations(obs):
     
     return cleaned_obs
 
-def get_data_stats(data):
+def get_data_stats(data, obs_mask: bool = False):
     data = data.reshape(-1,data.shape[-1])
+
+    # Create a mask to exclude the specified values from normalization
+    mask = np.ones_like(data[0], dtype=bool)
+    if obs_mask:
+        mask[28] = False
+        mask[29] = False
+        mask[30] = False
+        mask[31] = False
+        mask[39] = False
+    
+    # Filter data to exclude specified values
+    mask = np.repeat(mask[np.newaxis, :], data.shape[0], axis=0)
+    mask = np.where(mask, 0, 1)
+    masked_data = np.ma.masked_array(data, mask) # Apply mask to data
+
     stats = {
-        'min': np.min(data, axis=0),
-        'max': np.max(data, axis=0)
+        'min': np.min(masked_data.data, axis=0),
+        'max': np.max(masked_data.data, axis=0),
+        'mask': mask,
     }
+
     return stats
 
 def normalize_data(data, stats):
+    # Calculate the denominator for normalization
+    denominator = stats['max'] - stats['min']
+    denominator[denominator == 0] = 1
+
     # nomalize to [0,1]
-    ndata = (data - stats['min']) / (stats['max'] - stats['min'])
+    ndata = (data - stats['min']) / denominator
+
     # normalize to [-1, 1]
     ndata = ndata * 2 - 1
+
+    # Set masked values to original values
+    ndata = np.where(stats['mask'], data, ndata)
+    #print("Unnormalized NEW")
+    #print(data[0])
+    #print("Stats NEW")
+    #print(stats['max'])
+    #print(stats['min'])
+    #print("Normalized Data NEW")
+    #print(ndata[0])
     return ndata
 
 def unnormalize_data(ndata, stats):
     ndata = (ndata + 1) / 2
     data = ndata * (stats['max'] - stats['min']) + stats['min']
+
+    # Set masked values to original values
+    mask = data[:,:, stats['mask'][0]]
+    data = np.where(mask, data, ndata)
+
+    #print("Unnormalized NEW AGAIN")
+    #print(data[0][0])
     return data
