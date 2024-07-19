@@ -19,12 +19,13 @@ class StateNormalDataset(Dataset):
     """
 
     def __init__(
-        self, dataset_file: str, pred_horizon: int, obs_horizon: int, action_horizon:int, load_count=-1, device=None
+        self, dataset_file: str, pred_horizon: int, obs_horizon: int, action_horizon:int, task_id: torch.float64, load_count=-1, device=None
     ) -> None:
         self.dataset_file = dataset_file
         self.pred_horizon = pred_horizon
         self.obs_horizon = obs_horizon
         self.action_horizon = action_horizon
+        self.task_id = task_id
         self.device = device
         self.data = h5py.File(dataset_file, "r")
         json_path = dataset_file.replace(".h5", ".json")
@@ -127,7 +128,7 @@ class StateNormalDataset(Dataset):
         # Added code for diffusion policy
         obs_dict = get_observations(self.obs)
         train_data = dict(
-                        obs=convert_observation(obs_dict),
+                        obs=convert_observation(obs_dict, self.task_id),
                         actions=self.actions,
                         )
 

@@ -72,8 +72,13 @@ def remove_np_uint16(x: Union[np.ndarray, dict]):
                     return x.astype(np.int32)
                 return x
 
-def convert_observation(obs):
-    return np.concatenate(list(obs.values()), axis=-1)
+def convert_observation(obs, task_id):
+    # adds task_id to the observation
+    values = list(obs.values())
+    task_id = np.full((values[0].shape[0], 1), task_id, dtype=values[0].dtype) 
+    values.append(task_id)
+    # concatenate all the values
+    return np.concatenate(values, axis=-1)
 
 def get_observations(obs):
     #ensoure that the observations are in the correct format
@@ -83,33 +88,39 @@ def get_observations(obs):
     cleaned_obs["qpos"] = obs["agent"]["qpos"]
     cleaned_obs["qvel"] = obs["agent"]["qvel"]
     cleaned_obs["tcp_pose"] = obs["extra"]["tcp_pose"]
+    obs["extra"].pop("tcp_pose")
 
     #this code is not generic and only works for the specific observation spaces we have
-    if "goal_pose" in obs["extra"]:
-        cleaned_obs["goal_pose"] = obs["extra"]["goal_pose"]
-        obs["extra"].pop("goal_pose")
-    elif "goal_pos" in obs["extra"]:
-        pos = obs["extra"]["goal_pos"]
-        quad = np.array([1, 0, 0, 0])
-        cleaned_obs["goal_pose"] = np.concatenate([pos, quad])
-        obs["extra"].pop("goal_pos")
-    elif "box_hole_pos" in obs["extra"]:
-        cleaned_obs["goal_pose"] = obs["extra"]["box_hole_pos"]
-        obs["extra"].pop("box_hole_pos")
-    elif "cubeB_pose" in obs["extra"]:
-        cleaned_obs["goal_pose"] = obs["extra"]["cubeB_pose"]
-        obs["extra"].pop("cubeB_pose")
+    # Handle different goal position formats gracefully
+    goal_pose_keys = ["goal_pose", "goal_pos", "box_hole_pos", "cubeB_pose"]
+    for key in goal_pose_keys:
+        if key in obs["extra"]:
+            pos = obs["extra"][key]
+
+            # Ensure 'pos' is 2D with the correct number of columns
+            if pos.ndim == 1:
+                pos = pos.reshape(1, -1)  # Reshape to 2D if necessary
+            elif pos.ndim > 2:
+                raise ValueError(f"Unexpected dimensions for '{key}': {pos.shape}")
+
+            # Pad or truncate 'pos' to have 7 columns
+            num_rows = pos.shape[0]
+            pos = np.pad(pos[:, :7], ((0, 0), (0, 7 - pos.shape[1])), mode='constant')
+
+            cleaned_obs["goal_pose"] = pos
+            obs["extra"].pop(key)
+            break  # Stop once a valid goal pose key is found
     else:
-        print("No goal pose found in observation")
-        print("Setting goal pose to zero")
-        cleaned_obs["goal_pose"] = np.zeros(7)
+        print("No goal pose found. Setting to zero.")
+        length = len(obs["extra"]["tcp_pose"])
+        cleaned_obs["goal_pose"] = np.zeros((length, 7), dtype=torch.float64)  # Ensure 2D shape
         
     #is_grasped_reshaped = np.reshape(obs["extra"]["is_grasped"], (len(obs["extra"]["is_grasped"]), 1))
-    # Filter out observations that are no positions
+    
+    # Filter and add other observations with 7 columns
     for key, value in obs["extra"].items():
-        if value is dtype.is_floating_point:
-            if value.size == 7:
-                cleaned_obs[key] = value
+        if value.shape[-1] == 7 and value.ndim == 2:
+            cleaned_obs[key] = value
     
     return cleaned_obs
 
