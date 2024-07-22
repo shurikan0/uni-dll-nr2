@@ -84,8 +84,8 @@ def get_observations(obs):
     #is_grasped_reshaped = np.reshape(obs["extra"]["is_grasped"], (len(obs["extra"]["is_grasped"]), 1))
     return dict(
         tcp_pose=obs["extra"]["tcp_pose"],
-        obj_pose=obs["extra"]["obj_pose"],
-        goal_pos=obs["extra"]["goal_pos"],
+        obj_pose=obs["extra"]["charger_pose"],
+        goal_pos=obs["extra"]["goal_pose"],
         # is_grasped=is_grasped_reshaped,
         #tcp_to_obj_pos=obs["extra"]["tcp_to_obj_pos"],
         #obj_to_goal_pos=obs["extra"]["obj_to_goal_pos"],

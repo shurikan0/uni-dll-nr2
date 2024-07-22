@@ -12,8 +12,8 @@ from data_loading.state_dataset import StateDataset
 from unet_module import ConditionalUnet1D
 
 # Parameters
-dataset_path = '../Data/Training/Generated/PickCube-v1/motionplanning/data1000.state_dict.pd_joint_pos.h5'
-model_path = "../Data/Checkpoints/model_pickcube_state_dict_pd_joint_pos.pt"
+dataset_path = '../Data/Training/Generated/PlugCharger-v1/motionplanning/Data1000.state_dict.pd_joint_pos.h5'
+model_path = "../Data/Checkpoints/model_plugcharger_state_dict_pd_joint_pos.pt"
 pred_horizon = 16
 obs_horizon = 2
 action_horizon = 8
@@ -62,7 +62,7 @@ noise = noise_pred_net(
 denoised_action = noised_action - noise
 
 # Diffusion scheduler
-num_diffusion_iters = 100
+num_diffusion_iters = 10
 noise_scheduler = DDPMScheduler(
     num_train_timesteps=num_diffusion_iters,
     beta_schedule='squaredcos_cap_v2',
@@ -74,7 +74,7 @@ noise_scheduler = DDPMScheduler(
 device = torch.device('cuda')
 _ = noise_pred_net.to(device)
 
-num_epochs = 100
+num_epochs = 10
 
 # Exponential Moving Average
 ema = EMAModel(
