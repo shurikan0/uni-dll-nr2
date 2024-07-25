@@ -5,7 +5,7 @@ from tqdm import tqdm
 import os.path as osp
 from mani_skill.utils.wrappers.record import RecordEpisode
 from mani_skill.examples.motionplanning.panda.solutions import solvePushCube, solvePickCube, solveStackCube, solvePegInsertionSide, solvePlugCharger
-from env_solver import solvePlaceCube, solvePegInsertionSide2, solvePlugCharger2
+from env_solver import solvePlaceCube, solvePegInsertionSide2, solvePlugCharger2, solvePickCube2
 
 MP_SOLUTIONS = {
     "PickCube-v1": solvePickCube,
@@ -15,7 +15,8 @@ MP_SOLUTIONS = {
     "PushCube-v1": solvePushCube,
     "PlaceCube-v1": solvePlaceCube,
     "PegInsertionSide-v2": solvePegInsertionSide2,
-    "PlugCharger-v2": solvePlugCharger2
+    "PlugCharger-v2": solvePlugCharger2,
+    "PickCube-v2": solvePickCube2,
 }
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
