@@ -80,11 +80,13 @@ def remove_np_uint16(x: Union[np.ndarray, dict]):
 def convert_observation(obs, task_id):
     # adds task_id to the observation
     values = list(obs.values())
-    task_id = np.full((values[0].shape[0], 1), task_id, dtype=values[0].dtype) 
-    values.append(task_id)
-    print("Task ID")
-    print(values[0].shape)
-    print(task_id.shape)
+    example = values[0]
+    if isinstance(example, torch.Tensor):
+          example = example.numpy()
+
+    # add task_id to the observation
+    task_id_array = np.full((example.shape[0], 1), task_id, dtype=example.dtype) 
+    values.append(task_id_array)
     # concatenate all the values
     return np.concatenate(values, axis=-1)
 
@@ -100,7 +102,7 @@ def get_observations(obs):
 
     #this code is not generic and only works for the specific observation spaces we have
     # Handle different goal position formats gracefully
-    goal_pose_keys = ["goal_pose", "goal_pos", "box_hole_pos", "cubeB_pose"]
+    goal_pose_keys = ["goal_pose", "goal_pos", "box_hole_pose", "cubeB_pose"]
     for key in goal_pose_keys:
         if key in obs["extra"]:
             pos = obs["extra"][key]
@@ -112,18 +114,16 @@ def get_observations(obs):
                 raise ValueError(f"Unexpected dimensions for '{key}': {pos.shape}")
 
             # Pad or truncate 'pos' to have 7 columns
-            print("Dtypes of before and after")
-            print(pos.dtype)
             pos = np.pad(pos[:, :7], ((0, 0), (0, 7 - pos.shape[1])), mode='constant')
             if isinstance(cleaned_obs["tcp_pose"], torch.Tensor):
                 pos = torch.tensor(pos, dtype=cleaned_obs["tcp_pose"].dtype)
-            print(pos.dtype)
+                
             cleaned_obs["goal_pose"] = pos
             obs["extra"].pop(key)
             break  # Stop once a valid goal pose key is found
     else:
         print("No goal pose found. Setting to zero.")
-        length = len(obs["extra"]["tcp_pose"])
+        length = len(cleaned_obs["tcp_pose"])
         cleaned_obs["goal_pose"] = np.zeros((length, 7), dtype=np.float32)  # Ensure 2D shape
         
     #is_grasped_reshaped = np.reshape(obs["extra"]["is_grasped"], (len(obs["extra"]["is_grasped"]), 1))
@@ -131,88 +131,50 @@ def get_observations(obs):
     # Filter and add other observations with 7 columns
     for key, value in obs["extra"].items():
         if value.shape[-1] == 7 and value.ndim == 2:
-            cleaned_obs[key] = value
+            if key != "receptacle_pose":
+                cleaned_obs[key] = value
+
+    count = 0
+    for key in cleaned_obs.keys():
+        count += cleaned_obs[key].shape[-1]
     
-    for key, value in cleaned_obs.items():
-        print(key)
-        print(value.dtype)
+    assert count == 39, "Observation size is not 39"
+
+    
     return cleaned_obs
 
-def get_data_stats(data, obs_mask: bool = False):
-    data = data.reshape(-1,data.shape[-1])
 
-    # Create a mask to exclude the specified values from normalization
-    mask = np.ones_like(data[0], dtype=bool)
-    if obs_mask:
-        # This values are the goal pose values
-        # + the task id which is the last value
-        mask[25] = False # x
-        mask[26] = False # y
-        mask[27] = False # z
-        mask[28] = False # qx
-        mask[29] = False # qy
-        mask[30] = False # qz
-        mask[31] = False # qw
-        mask[39] = False # task id
+def get_min_max_values(dataloader, exclude_features):
+    min_vals = None
+    max_vals = None
+    for batch in dataloader:
+      obs = batch['obs']
+      obs_reshaped = obs.view(-1, obs.shape[-1])
+      mask = torch.ones(obs_reshaped.shape[1], dtype=torch.bool)
+      mask[exclude_features] = False
+      min_vals = obs_reshaped[:, mask].min(dim=0).values
+      max_vals = obs_reshaped[:, mask].max(dim=0).values
+    return min_vals, max_vals
+
+def normalize_batch(batch, min_vals, max_vals, exclude_features):
+    batch = batch["obs"]
+    batch_reshaped = batch.view(-1, batch.shape[-1])
+    mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
+    mask[exclude_features] = False
     
-    # Filter data to exclude specified values
-    mask = np.repeat(mask[np.newaxis, :], data.shape[0], axis=0)
-    mask = np.where(mask, 0, 1)
-    masked_data = np.ma.masked_array(data, mask) # Apply mask to data
+    normalized_batch = batch_reshaped.clone()
+    normalized_batch[:, mask] = (batch_reshaped[:, mask] - min_vals) / (max_vals - min_vals + 0.1)
+    return normalized_batch.view(batch.shape)
 
-    stats = {
-        'min': np.min(masked_data.data, axis=0),
-        'max': np.max(masked_data.data, axis=0),
-        'mask': mask,
-    }
-
-    return stats
-
-def set_last_dimension(array, mask):
-    """Sets the last dimension of an array to new_data, matching the original shape.
-
-    Args:
-        original_array: The original NumPy array.
-        new_data: A 1D array containing the new data for the last dimension.
-
-    Returns:
-        A new NumPy array with the same shape as original_array, 
-        but with the last dimension set to new_data.
-    """
-    new_shape = array.shape[:-1] + (len(mask),)
-    new_data_expanded = np.expand_dims(mask, axis=0)  
-    return np.broadcast_to(new_data_expanded, new_shape)
-
-
-def normalize_data(data, stats):
-    # Calculate the denominator for normalization
-    # Avoid division by zero
-    denominator = stats['max'] - stats['min']
-    denominator[denominator == 0] = 1
-
-    # nomalize to [0,1]
-    ndata = (data - stats['min']) / denominator
-
-    # normalize to [-1, 1]
-    ndata = ndata * 2 - 1
-
-    # Set masked values to original values
-    mask = set_last_dimension(data, stats['mask'][0])
-    ndata = np.where(mask, data, ndata)
-
-    return ndata
-
-def unnormalize_data(ndata, stats):
-    ndata = (ndata + 1) / 2
-    data = ndata * (stats['max'] - stats['min']) + stats['min']
-
-    # Set masked values to original values
-    mask = set_last_dimension(data, stats['mask'][0])
-    data = np.where(mask, data, ndata)
-
-    return data
-
-
+def denormalize_batch(batch, min_vals, max_vals, exclude_features):
+    batch = batch["obs"]
+    batch_reshaped = batch.view(-1, batch.shape[-1])
+    mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
+    mask[exclude_features] = False
+    
+    denormalized_batch = batch_reshaped.clone()
+    denormalized_batch[:, mask] = batch_reshaped[:, mask] * (max_vals - min_vals + 0.1) + min_vals
+    return denormalized_batch.view(batch.shape)
 
 
 class StateDataset(Dataset):
@@ -295,8 +257,8 @@ class StateDataset(Dataset):
         self.terminated = np.concatenate(self.terminated)
         self.truncated = np.concatenate(self.truncated)
         
-        self.truncated = np.zeros(self.actions.shape[0], dtype=bool)
-        self.truncated[-1] = True
+        #self.truncated = np.zeros(self.actions.shape[0], dtype=bool)
+        #self.truncated[-1] = True
         
         if self.rewards is not None:
             self.rewards = np.concatenate(self.rewards)
@@ -337,7 +299,7 @@ class StateDataset(Dataset):
 
         # Added code for diffusion policy
         obs_dict = get_observations(self.obs)
-        train_data = dict(
+        self.train_data = dict(
                         obs=convert_observation(obs_dict, self.task_id),
                         actions=self.actions,
                         )
@@ -350,18 +312,6 @@ class StateDataset(Dataset):
             pad_after=self.action_horizon - 1
         )
 
-        stats = dict()
-        normalized_train_data = dict()
-        for key, data in train_data.items():
-            if key == "actions":
-                stats[key] = get_data_stats(data)
-            else:
-                stats[key] = get_data_stats(data, True)
-            
-            normalized_train_data[key] = normalize_data(data, stats[key])
-  
-        self.normalized_train_data = normalized_train_data
-        self.stats = stats
 
     def __len__(self):
         # all possible sequenzes of the dataset
@@ -373,7 +323,7 @@ class StateDataset(Dataset):
 
     
         sampled = sample_sequence(
-            train_data=self.normalized_train_data, 
+            train_data=self.train_data, 
             sequence_length=self.pred_horizon,
             buffer_start_idx=buffer_start_idx,
             buffer_end_idx=buffer_end_idx,
