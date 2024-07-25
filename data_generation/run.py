@@ -5,7 +5,7 @@ from tqdm import tqdm
 import os.path as osp
 from mani_skill.utils.wrappers.record import RecordEpisode
 from mani_skill.examples.motionplanning.panda.solutions import solvePushCube, solvePickCube, solveStackCube, solvePegInsertionSide, solvePlugCharger
-from .env_solver import solvePlaceCube, solvePegInsertionSide2
+from env_solver import solvePlaceCube, solvePegInsertionSide2
 
 MP_SOLUTIONS = {
     "PickCube-v1": solvePickCube,
@@ -14,7 +14,7 @@ MP_SOLUTIONS = {
     "PlugCharger-v1": solvePlugCharger,
     "PushCube-v1": solvePushCube,
     "PlaceCube-v1": solvePlaceCube,
-    "PegInsertion-v2": solvePegInsertionSide2,
+    "PegInsertionSide-v2": solvePegInsertionSide2,
 }
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
@@ -25,8 +25,8 @@ def parse_args(args=None):
     parser.add_argument("--reward-mode", type=str)
     parser.add_argument("-b", "--sim-backend", type=str, default="cpu", help="Which simulation backend to use. Can be 'auto', 'cpu', 'gpu'")
     parser.add_argument("--render-mode", type=str, default="rgb_array", help="can be 'sensors' or 'rgb_array' which only affect what is saved to videos")
-    parser.add_argument("--vis", action="store_true", default=True, help="whether or not to open a GUI to visualize the solution live")
-    parser.add_argument("--save-video", action="store_true", default=True, help="whether or not to save videos locally")
+    parser.add_argument("--vis", action="store_true", default=False, help="whether or not to open a GUI to visualize the solution live")
+    parser.add_argument("--save-video", action="store_true", default=False, help="whether or not to save videos locally")
     parser.add_argument("--traj-name", type=str, help="The name of the trajectory .h5 file that will be created.")
     parser.add_argument("--shader", default="default", type=str, help="Change shader used for rendering. Default is 'default' which is very fast. Can also be 'rt' for ray tracing and generating photo-realistic renders. Can also be 'rt-fast' for a faster but lower quality ray-traced renderer")
     parser.add_argument("--record-dir", type=str, default="data", help="where to save the recorded trajectories")

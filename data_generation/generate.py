@@ -28,12 +28,5 @@ def parse_args(args=None):
     parser.add_argument("--record-dir", type=str, default="data", help="where to save the recorded trajectories")
     return parser.parse_args()
   
-args = {
-    "env_id": "PegInsertionSide-v1",
-    "num_traj": 3000,
-    "only_count_success": True,
-    "record_dir": "/content/drive/MyDrive/Data/Generated",
-    "traj_name": "traj3000"
-}
 
 run.main(parse_args())
