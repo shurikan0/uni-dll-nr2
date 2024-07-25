@@ -11,6 +11,7 @@ from copy import deepcopy
 from typing import Union
 
 import gymnasium as gym
+from gymnasium.envs.registration import register
 import h5py
 import numpy as np
 import sapien
@@ -26,8 +27,6 @@ from mani_skill.trajectory.merge_trajectory import merge_h5
 from mani_skill.utils import common, gym_utils, io_utils, wrappers
 from mani_skill.utils.structs.link import Link
 
-import gym
-from gym.envs.registration import register
 from env_solver.custom_envs.peg_insertion import PegInsertionSideEnv
 
 def qpos_to_pd_joint_delta_pos(controller: PDJointPosController, qpos):
@@ -280,7 +279,7 @@ def from_pd_joint_delta_pos(
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--traj-path", type=str, default="data/PegInsertionSide-v2/motionplanning/20240725_182655.h5")
+    parser.add_argument("--traj-path", type=str, default="data/PegInsertionSide-v2/motionplanning/trajectory.h5")
     parser.add_argument(
         "-b",
         "--sim-backend",
@@ -297,7 +296,7 @@ def parse_args(args=None):
         "--save-traj", action="store_true", default=True, help="whether to save trajectories"
     )
     parser.add_argument(
-        "--save-video", action="store_true", help="whether to save videos"
+        "--save-video", action="store_true", default=False, help="whether to save videos"
     )
     parser.add_argument("--num-procs", type=int, default=1)
     parser.add_argument("--max-retry", type=int, default=3)
@@ -590,13 +589,6 @@ def _main(args, proc_id: int = 0, num_procs=1, pbar=None):
 
 
 def main(args):
-
-    register(
-        id="PegInsertionSide-v2",
-        entry_point="env_solver.custom_envs.peg_insertion:PegInsertionSideEnv",
-        max_episode_steps=200,
-    )
-
 
     if args.num_procs > 1:
         pool = mp.Pool(args.num_procs)

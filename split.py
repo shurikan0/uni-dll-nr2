@@ -6,14 +6,14 @@ obs_mode = 'state_dict'
 control_mode = 'pd_joint_delta_pos'
 
 #env_ids = ['PickCube-v1', 'StackCube-v1', 'PegInsertionSide-v1', 'PlugCharger-v1', 'PushCube-v1']
-env_ids = ['PegInsertionSide-v1']
+env_ids = ['PegInsertionSide-v2']
 base_path = 'data'
 
 for env_id in env_ids:
     # File names
     generated_path = f'{base_path}/{env_id}/motionplanning'
-    original_h5_file = f'{generated_path}/traj3000.{obs_mode}.{control_mode}.h5'
-    original_json_file = f'{generated_path}/traj3000.{obs_mode}.{control_mode}.json'
+    original_h5_file = f'{generated_path}/trajectory.{obs_mode}.{control_mode}.h5'
+    original_json_file = f'{generated_path}/trajectory.{obs_mode}.{control_mode}.json'
     training_h5_file = f'{generated_path}/training.{obs_mode}.{control_mode}.h5'
     validation_h5_file = f'{generated_path}/validation.{obs_mode}.{control_mode}.h5'
     training_json_file = f'{generated_path}/training.{obs_mode}.{control_mode}.json'
@@ -27,7 +27,7 @@ for env_id in env_ids:
 
         np.random.shuffle(traj_datasets)
 
-        split_point = int(0.9 * len(traj_datasets))
+        split_point = 300#int(0.9 * len(traj_datasets))
 
         training_datasets = traj_datasets[:split_point]
         validation_datasets = traj_datasets[split_point:]
