@@ -28,9 +28,12 @@ def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_be
     indices = list()
     episode_length = 0
     episode_index = 1 # Start 1 for human readability
+    #print(f"episode_ends: {episode_ends}")
+    #print(f"len(episode_ends): {len(episode_ends)}")
+    end_of_last_episode = False
     for i in range(len(episode_ends)):
         episode_length += 1
-        if episode_ends[i]:
+        if episode_ends[i] and not end_of_last_episode:
             start_idx = 0 if i <= 0 else i - episode_length + 1
             min_start = -pad_before
             max_start = episode_length - sequence_length + pad_after
@@ -44,8 +47,14 @@ def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_be
                 sample_start_idx = 0 + start_offset
                 sample_end_idx = sequence_length - end_offset
                 indices.append([buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx])
+            #print(f"Episode {episode_index} has {episode_length} steps")
             episode_length = 0
             episode_index += 1
+            end_of_last_episode = True
+        elif not episode_ends[i]:
+            end_of_last_episode = False
+    #print(f"Created {len(indices)} samples from {episode_index - 1} episodes")
+    #print(f"All indices: {indices}")
     return np.array(indices)
 
 
@@ -65,6 +74,7 @@ def sample_sequence(train_data, sequence_length, buffer_start_idx, buffer_end_id
                 data[sample_end_idx:] = sample[-1]
             data[sample_start_idx:sample_end_idx] = sample
         result[key] = data
+    #print(f"Sampled sequence from {buffer_start_idx} to {buffer_end_idx} with start {sample_start_idx} and end {sample_end_idx}")
     return result
 
 def remove_np_uint16(x: Union[np.ndarray, dict]):
@@ -211,6 +221,7 @@ class StateDataset(Dataset):
         self.actions = []
         self.terminated = []
         self.truncated = []
+        self.end_episode = []
         self.success, self.fail, self.rewards = None, None, None
         if load_count == -1:
             load_count = len(self.episodes)
@@ -224,6 +235,7 @@ class StateDataset(Dataset):
             trajectory = self.data[f"traj_{eps['episode_id']}"]
             trajectory = load_h5_data(trajectory)
             eps_len = len(trajectory["actions"])
+            print(f"Episode {eps_id} has {eps_len} steps")
 
             # exclude the final observation as most learning workflows do not use it
             obs = common.index_dict_array(trajectory["obs"], slice(eps_len))
@@ -235,6 +247,20 @@ class StateDataset(Dataset):
             self.actions.append(trajectory["actions"])
             self.terminated.append(trajectory["terminated"])
             self.truncated.append(trajectory["truncated"])
+
+
+            end_episode = [False] * eps_len
+            is_terminated = False
+            for i in range(len(end_episode)):
+                if trajectory["terminated"][i] == True or is_terminated:
+                    end_episode[i] = True
+                    is_terminated = True
+                else:
+                    end_episode[i] = False
+
+            #print(f"Episode {eps_id} has {end_episode.count(True)} end of episodes")
+            self.end_episode.append(end_episode)
+            #self.truncated[self.terminated:] = True
 
             # handle data that might optionally be in the trajectory
             if "rewards" in trajectory:
@@ -256,10 +282,10 @@ class StateDataset(Dataset):
         self.actions = np.vstack(self.actions)
         self.terminated = np.concatenate(self.terminated)
         self.truncated = np.concatenate(self.truncated)
+        self.end_episode = np.concatenate(self.end_episode)
         
-        #self.truncated = np.zeros(self.actions.shape[0], dtype=bool)
-        #self.truncated[-1] = True
-        
+
+
         if self.rewards is not None:
             self.rewards = np.concatenate(self.rewards)
         if self.success is not None:
@@ -306,7 +332,7 @@ class StateDataset(Dataset):
 
          # Initialize index lists and stat dicts
         self.indices = create_sample_indices(
-            episode_ends=self.truncated, 
+            episode_ends=self.end_episode, 
             sequence_length=self.pred_horizon,
             pad_before=self.obs_horizon - 1,
             pad_after=self.action_horizon - 1
