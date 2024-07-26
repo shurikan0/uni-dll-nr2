@@ -24,7 +24,8 @@ class PlugChargerEnv(BaseEnv):
     _peg_gap = 7e-3  # charger peg gap
     _clearance = 5e-4  # single side clearance
     _receptacle_size = [1e-2, 5e-2, 5e-2]  # receptacle half size
-    _hole_size_gap = 1.5
+    _hole_size_gap_x = 3
+    _hole_size_gap_y = 1.5
 
     SUPPORTED_ROBOTS = ["panda_wristcam"]
     agent: Union[PandaWristCam]
@@ -153,8 +154,8 @@ class PlugChargerEnv(BaseEnv):
         self.receptacle = self._build_receptacle(
             [
                 self._peg_size[0],
-                self._peg_size[1] * self._hole_size_gap + self._clearance,
-                self._peg_size[2] * self._hole_size_gap + self._clearance,
+                self._peg_size[1] * self._hole_size_gap_x + self._clearance,
+                self._peg_size[2] * self._hole_size_gap_y + self._clearance,
             ],
             self._receptacle_size,
             self._peg_gap,
