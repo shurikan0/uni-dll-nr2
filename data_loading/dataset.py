@@ -150,52 +150,50 @@ def get_observations(obs):
     return cleaned_obs
 
 
-
-def get_min_max_values(dataloader, exclude_features):
-    min_obs = None
-    max_obs = None
-    min_actions = None
-    max_actions = None
+def get_min_max_values(dataloader):
+    # do this once before training
+    min_vals = None
+    max_vals = None
     mask = None
+
     for batch in dataloader:
-      for key, value in batch.items():
-        obs_reshaped = batch[key].view(-1, batch[key].shape[-1])
-        if key == "obs":
-          if mask is None:
-            mask = torch.ones(obs_reshaped.shape[1], dtype=torch.bool)
-            mask[exclude_features] = False
-          min_obs = obs_reshaped[:, mask].min(dim=0).values
-          max_obs = obs_reshaped[:, mask].max(dim=0).values
+        batch = batch['obs']
+        batch_reshaped = batch.view(-1, batch.shape[-1])
+        if mask is None:
+            mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
+            mask[39] = False
+        batch_min = batch_reshaped[:, mask].min(dim=0)[0]
+        batch_max = batch_reshaped[:, mask].max(dim=0)[0]
+    
+        if min_vals is None and max_vals is None:
+            min_vals = batch_min
+            max_vals = batch_max
         else:
-          min_actions = obs_reshaped.min(dim=0).values
-          max_actions = obs_reshaped.max(dim=0).values
-    return {"obs": {"min": min_obs, "max": max_obs, "mask": mask}, "actions": {"min": min_actions, "max": max_actions}}
+            min_vals = torch.min(min_vals, batch_min)
+            max_vals = torch.max(max_vals, batch_max)
+    #print(f"Shape of min_vals: {min_vals.shape}")
+    #print(f"Shape of max_vals: {max_vals.shape}")
+    #print(f"Shape of mask: {mask.shape}")
+    return {"obs": {"min": min_vals, "max": max_vals, "mask": mask}}
+
 
 def normalize_batch(batch, stats):
-    for key, value in batch.items():
-      print(f"key: {key}")
-      print(f"stats[key]: {stats[key]}")
-      print(f"batch[key]: {batch[key]}")
-      batch_reshaped = batch[key].view(-1, batch[key].shape[-1])
-
-      normalized_batch = batch_reshaped.clone()
-      if key == "obs":
-        normalized_batch[:, stats[key]["mask"]] = (batch_reshaped[:, stats[key]["mask"]] - stats[key]["min"]) / (stats[key]["max"] - stats[key]["min"] + 0.1)
-      else:
-        normalized_batch = (batch_reshaped - stats[key]["min"]) / (stats[key]["max"] - stats[key]["min"] + 0.1)
-      batch[key] = normalized_batch.view(batch[key].shape)
+    batch_reshaped = batch["obs"].view(-1, batch["obs"].shape[-1])
+    normalized_batch = batch_reshaped.clone()
+    normalized_batch[:, stats["obs"]["mask"]] = (batch_reshaped[:, stats["obs"]["mask"]] - stats["obs"]["min"]) / (stats["obs"]["max"] - stats["obs"]["min"] + 0.1)
+    #print(f"Shape of normalized_batch: {normalize_batch.shape}")
+    batch["obs"] = normalized_batch.view(batch["obs"].shape)
+    #print(f"Shape of normalized batch: {batch["obs"].shape}")
     return batch
 
-def denormalize_batch(batch, stats):
-    for key, value in batch.items():
-      batch_reshaped = batch[key].view(-1, batch[key].shape[-1])
-
-      denormalized_batch = batch_reshaped.clone()
-      if key == "obs":
-        denormalized_batch[:, stats[key]["mask"]] = batch_reshaped[:, stats[key]["mask"]] * (stats[key]["max"] - stats[key]["min"] + 0.1) + stats[key]["min"]
-      else:
-        denormalized_batch = batch_reshaped * (stats[key]["max"] - stats[key]["min"] + 0.1) + stats[key]["min"]
-      batch[key] = denormalized_batch.view(batch[key].shape)
+def denormalize_batch(batch, stats):   
+    batch_reshaped = batch["obs"].view(-1, batch["obs"].shape[-1])
+    denormalized_batch = batch_reshaped.clone() 
+    denormalized_batch[:, stats["obs"]["mask"]] = batch_reshaped[:, stats["obs"]["mask"]] * (stats["obs"]["max"] - stats["obs"]["min"] + 0.1) + stats["obs"]["min"]
+    #print(f"Shape of denormalized_batch: {denormalized_batch.shape}")
+    #print(f"Batch shape: {batch['obs'].shape}")
+    batch["obs"] = denormalized_batch.view(batch["obs"].shape)
+    #print(f"Shape of denormalized batch: {batch["obs"].shape}")
     return batch
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from dataset import StateDataset
+from dataset import StateDataset, get_min_max_values, normalize_batch, denormalize_batch
 from torch.utils.data import DataLoader
 
 env_id = "PegInsertionSide-v2"
@@ -27,12 +27,29 @@ dataset = StateDataset(
     load_count,
 )
 
+# create dataset from file
+dataset2 = StateDataset(
+    dataset_file1,
+    pred_horizon,
+    obs_horizon,
+    action_horizon,
+    task_id,
+    -1,
+)
+
 print(len(dataset))
+print(len(dataset2))
 
 dataloader = DataLoader(dataset, shuffle=False, batch_size=1)
+dataloader2 = DataLoader(dataset2, shuffle=False, batch_size=1)
 
-dataloader_iter = iter(dataloader)
+batch = next(iter(dataloader))
+stats = get_min_max_values(dataloader)
 
-for batch in dataloader_iter:
-    print(batch["actions"][-1])
+
+print("Stats:", stats["obs"]["min"], stats["obs"]["max"])
+print("Original:", batch["obs"])
+print("Normalized:", normalize_batch(batch, stats)["obs"])
+print("Denormalized:", denormalize_batch(normalize_batch(batch, stats), stats)["obs"])
+
 
