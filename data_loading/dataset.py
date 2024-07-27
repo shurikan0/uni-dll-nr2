@@ -1,16 +1,12 @@
+import h5py
+import numpy as np
+import torch
 from torch.utils.data import Dataset
+from tqdm import tqdm
+from typing import Union
+from collections import OrderedDict
 from mani_skill.utils import common
 from mani_skill.utils.io_utils import load_json
-import h5py
-from tqdm import tqdm
-import numpy as np
-# loads h5 data into memory for faster access
-from torch import dtype
-import numpy as np
-import h5py
-from collections import OrderedDict
-from typing import Union
-import torch
 
 
 def load_h5_data(data):
@@ -58,6 +54,7 @@ def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_be
     return np.array(indices)
 
 
+
 def sample_sequence(train_data, sequence_length, buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx):
     result = dict()
     for key, input_arr in train_data.items():
@@ -74,7 +71,6 @@ def sample_sequence(train_data, sequence_length, buffer_start_idx, buffer_end_id
                 data[sample_end_idx:] = sample[-1]
             data[sample_start_idx:sample_end_idx] = sample
         result[key] = data
-    #print(f"Sampled sequence from {buffer_start_idx} to {buffer_end_idx} with start {sample_start_idx} and end {sample_end_idx}")
     return result
 
 def remove_np_uint16(x: Union[np.ndarray, dict]):
@@ -154,37 +150,53 @@ def get_observations(obs):
     return cleaned_obs
 
 
+
 def get_min_max_values(dataloader, exclude_features):
-    min_vals = None
-    max_vals = None
+    min_obs = None
+    max_obs = None
+    min_actions = None
+    max_actions = None
+    mask = None
     for batch in dataloader:
-      obs = batch['obs']
-      obs_reshaped = obs.view(-1, obs.shape[-1])
-      mask = torch.ones(obs_reshaped.shape[1], dtype=torch.bool)
-      mask[exclude_features] = False
-      min_vals = obs_reshaped[:, mask].min(dim=0).values
-      max_vals = obs_reshaped[:, mask].max(dim=0).values
-    return min_vals, max_vals
+      for key, value in batch.items():
+        obs_reshaped = batch[key].view(-1, batch[key].shape[-1])
+        if key == "obs":
+          if mask is None:
+            mask = torch.ones(obs_reshaped.shape[1], dtype=torch.bool)
+            mask[exclude_features] = False
+          min_obs = obs_reshaped[:, mask].min(dim=0).values
+          max_obs = obs_reshaped[:, mask].max(dim=0).values
+        else:
+          min_actions = obs_reshaped.min(dim=0).values
+          max_actions = obs_reshaped.max(dim=0).values
+    return {"obs": {"min": min_obs, "max": max_obs, "mask": mask}, "actions": {"min": min_actions, "max": max_actions}}
 
-def normalize_batch(batch, min_vals, max_vals, exclude_features):
-    batch = batch["obs"]
-    batch_reshaped = batch.view(-1, batch.shape[-1])
-    mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
-    mask[exclude_features] = False
-    
-    normalized_batch = batch_reshaped.clone()
-    normalized_batch[:, mask] = (batch_reshaped[:, mask] - min_vals) / (max_vals - min_vals + 0.1)
-    return normalized_batch.view(batch.shape)
+def normalize_batch(batch, stats):
+    for key, value in batch.items():
+      print(f"key: {key}")
+      print(f"stats[key]: {stats[key]}")
+      print(f"batch[key]: {batch[key]}")
+      batch_reshaped = batch[key].view(-1, batch[key].shape[-1])
 
-def denormalize_batch(batch, min_vals, max_vals, exclude_features):
-    batch = batch["obs"]
-    batch_reshaped = batch.view(-1, batch.shape[-1])
-    mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
-    mask[exclude_features] = False
-    
-    denormalized_batch = batch_reshaped.clone()
-    denormalized_batch[:, mask] = batch_reshaped[:, mask] * (max_vals - min_vals + 0.1) + min_vals
-    return denormalized_batch.view(batch.shape)
+      normalized_batch = batch_reshaped.clone()
+      if key == "obs":
+        normalized_batch[:, stats[key]["mask"]] = (batch_reshaped[:, stats[key]["mask"]] - stats[key]["min"]) / (stats[key]["max"] - stats[key]["min"] + 0.1)
+      else:
+        normalized_batch = (batch_reshaped - stats[key]["min"]) / (stats[key]["max"] - stats[key]["min"] + 0.1)
+      batch[key] = normalized_batch.view(batch[key].shape)
+    return batch
+
+def denormalize_batch(batch, stats):
+    for key, value in batch.items():
+      batch_reshaped = batch[key].view(-1, batch[key].shape[-1])
+
+      denormalized_batch = batch_reshaped.clone()
+      if key == "obs":
+        denormalized_batch[:, stats[key]["mask"]] = batch_reshaped[:, stats[key]["mask"]] * (stats[key]["max"] - stats[key]["min"] + 0.1) + stats[key]["min"]
+      else:
+        denormalized_batch = batch_reshaped * (stats[key]["max"] - stats[key]["min"] + 0.1) + stats[key]["min"]
+      batch[key] = denormalized_batch.view(batch[key].shape)
+    return batch
 
 
 class StateDataset(Dataset):
@@ -235,7 +247,7 @@ class StateDataset(Dataset):
             trajectory = self.data[f"traj_{eps['episode_id']}"]
             trajectory = load_h5_data(trajectory)
             eps_len = len(trajectory["actions"])
-            print(f"Episode {eps_id} has {eps_len} steps")
+            #print(f"Episode {eps_id} has {eps_len} steps")
 
             # exclude the final observation as most learning workflows do not use it
             obs = common.index_dict_array(trajectory["obs"], slice(eps_len))
@@ -250,13 +262,14 @@ class StateDataset(Dataset):
 
 
             end_episode = [False] * eps_len
-            is_terminated = False
-            for i in range(len(end_episode)):
-                if trajectory["terminated"][i] == True or is_terminated:
-                    end_episode[i] = True
-                    is_terminated = True
-                else:
-                    end_episode[i] = False
+            end_episode[-1] = True
+            #is_terminated = False
+            #for i in range(len(end_episode)):
+            #    if trajectory["terminated"][i] == True or is_terminated:
+            #        end_episode[i] = True
+            #        is_terminated = True
+            #    else:
+            #        end_episode[i] = False
 
             #print(f"Episode {eps_id} has {end_episode.count(True)} end of episodes")
             self.end_episode.append(end_episode)

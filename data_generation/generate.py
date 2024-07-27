@@ -45,6 +45,7 @@ def main(args):
         shader_dir=args.shader,
         sim_backend=args.sim_backend
     )
+    print(env.table_scene.table_length)
     if env_id not in MP_SOLUTIONS:
         raise RuntimeError(f"No already written motion planning solutions for {env_id}. Available options are {list(MP_SOLUTIONS.keys())}")
     env = RecordEpisode(

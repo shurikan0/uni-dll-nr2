@@ -10,11 +10,11 @@ control_mode = "pd_joint_delta_pos"
 
 #variables
 dataset_file1 = f'data/{env_id}/motionplanning/trajectory.{obs_mode}.{control_mode}.h5'
-load_count = 2
+load_count = 1
 task_id = 0.1
-pred_horizon = 16
-obs_horizon = 2
-action_horizon = 8
+pred_horizon = 1
+obs_horizon = 1
+action_horizon = 1
 
 
 # create dataset from file
@@ -33,5 +33,6 @@ dataloader = DataLoader(dataset, shuffle=False, batch_size=1)
 
 dataloader_iter = iter(dataloader)
 
-print("Length of dataloader: ", len(dataloader))
-print("Batch: ", next(dataloader_iter))
+for batch in dataloader_iter:
+    print(batch["actions"][-1])
+
