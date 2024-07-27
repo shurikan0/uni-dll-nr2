@@ -207,6 +207,7 @@ def get_data_stats(data):
 
 def normalize_data(data, stats, task_id):
     # nomalize to [0,1]
+    print(f"Data shape: {data.shape}")
     ndata = (data - stats['min']) / (stats['max'] - stats['min'] + 0.1)
     # normalize to [-1, 1]
     ndata = ndata * 2 - 1
@@ -214,6 +215,7 @@ def normalize_data(data, stats, task_id):
     return ndata
 
 def unnormalize_data(ndata, stats, task_id):
+    print(f"Ndata shape: {ndata.shape}")
     ndata = (ndata + 1) / 2
     data = ndata * (stats['max'] - stats['min'] + 0.1) + stats['min']
     data[...,39] = task_id
@@ -366,8 +368,10 @@ class StateDataset(Dataset):
         # Added code for diffusion policy
         obs_dict = get_observations(self.obs)
         obs = convert_observation(obs_dict, self.task_id)
+        print("inside dataset", obs[0])
         self.stats = get_data_stats(obs)
         obs = normalize_data(obs, self.stats, self.task_id)
+        print("inside dataset", obs[0])
         self.train_data = dict(
                         obs=obs,
                         actions=self.actions,
