@@ -44,12 +44,7 @@ dataloader = DataLoader(dataset, shuffle=False, batch_size=1)
 dataloader2 = DataLoader(dataset2, shuffle=False, batch_size=1)
 
 batch = next(iter(dataloader))
-stats = get_min_max_values(dataloader)
+#stats = get_min_max_values(dataloader)
 
-
-print("Stats:", stats["obs"]["min"], stats["obs"]["max"])
 print("Original:", batch["obs"])
-print("Normalized:", normalize_batch(batch, stats)["obs"])
-print("Denormalized:", denormalize_batch(normalize_batch(batch, stats), stats)["obs"])
-
 

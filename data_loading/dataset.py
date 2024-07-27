@@ -196,6 +196,28 @@ def denormalize_batch(batch, stats):
     #print(f"Shape of denormalized batch: {batch["obs"].shape}")
     return batch
 
+# normalize data
+def get_data_stats(data):
+    data = data.reshape(-1,data.shape[-1])
+    stats = {
+        'min': np.min(data, axis=0),
+        'max': np.max(data, axis=0)
+    }
+    return stats
+
+def normalize_data(data, stats, task_id):
+    # nomalize to [0,1]
+    ndata = (data - stats['min']) / (stats['max'] - stats['min'] + 0.1)
+    # normalize to [-1, 1]
+    ndata = ndata * 2 - 1
+    ndata[...,39] = task_id
+    return ndata
+
+def unnormalize_data(ndata, stats, task_id):
+    ndata = (ndata + 1) / 2
+    data = ndata * (stats['max'] - stats['min'] + 0.1) + stats['min']
+    data[...,39] = task_id
+    return data
 
 class StateDataset(Dataset):
     """
@@ -333,14 +355,6 @@ class StateDataset(Dataset):
                 self.fail = common.to_tensor(self.truncated, device=device)
         
 
-
-        # Added code for diffusion policy
-        obs_dict = get_observations(self.obs)
-        self.train_data = dict(
-                        obs=convert_observation(obs_dict, self.task_id),
-                        actions=self.actions,
-                        )
-
          # Initialize index lists and stat dicts
         self.indices = create_sample_indices(
             episode_ends=self.end_episode, 
@@ -348,6 +362,16 @@ class StateDataset(Dataset):
             pad_before=self.obs_horizon - 1,
             pad_after=self.action_horizon - 1
         )
+
+        # Added code for diffusion policy
+        obs_dict = get_observations(self.obs)
+        obs = convert_observation(obs_dict, self.task_id)
+        self.stats = get_data_stats(obs)
+        obs = normalize_data(obs, self.stats, self.task_id)
+        self.train_data = dict(
+                        obs=obs,
+                        actions=self.actions,
+                        )
 
 
     def __len__(self):
