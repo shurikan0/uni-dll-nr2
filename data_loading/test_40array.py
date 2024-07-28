@@ -49,13 +49,13 @@ batch2 = next(iter(dataloader2))
 #stats = get_min_max_values(dataloader)
 #print("Stats min shape:", dataset.stats["min"].shape)
 #print("Stats max shape:", dataset.stats["max"].shape)
-print("Original (normalized):", batch["obs"])
-print("Unnormalized:", unnormalize_data(batch["obs"], dataset.stats, task_id=task_id))
-print("Normalized:", unnormalize_data(normalize_data(batch["obs"], dataset.stats, task_id=task_id), dataset.stats, task_id=task_id))
+#print("Original (normalized):", batch["obs"])
+#print("Unnormalized:", unnormalize_data(batch["obs"], dataset.stats, task_id=task_id))
+#print("Normalized:", unnormalize_data(normalize_data(batch["obs"], dataset.stats, task_id=task_id), dataset.stats, task_id=task_id))
 
-stats = get_min_max_values(dataloader2)
-print("Original (unnormalized):", batch2["obs"])
-print("Normalized:", normalize_batch(batch2, stats)["obs"])
-print("Unnormalized:", denormalize_batch(normalize_batch(batch2, stats), stats)["obs"])
+stats = get_min_max_values(dataloader2)#
+#print("Original (unnormalized):", batch2["obs"])
+#print("Normalized:", normalize_batch(batch2, stats)["obs"])
+#print("Unnormalized:", denormalize_batch(normalize_batch(batch2, stats), stats)["obs"])
 
 

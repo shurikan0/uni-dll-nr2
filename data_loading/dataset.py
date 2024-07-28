@@ -111,6 +111,9 @@ def get_observations(obs):
         if key in obs["extra"]:
             pos = obs["extra"][key]
 
+            print(f"Found goal pose '{key}' with shape {pos.shape}")
+            print(f"Goal pose: {pos[0]}")
+
             # Ensure 'pos' is 2D with the correct number of columns
             if pos.ndim == 1:
                 pos = pos.reshape(1, -1)  # Reshape to 2D if necessary
@@ -121,7 +124,10 @@ def get_observations(obs):
             pos = np.pad(pos[:, :7], ((0, 0), (0, 7 - pos.shape[1])), mode='constant')
             if isinstance(cleaned_obs["tcp_pose"], torch.Tensor):
                 pos = torch.tensor(pos, dtype=cleaned_obs["tcp_pose"].dtype)
-                
+
+            print(f"Goal pose shape after processing: {pos.shape}") 
+            print(f"Goal pose after processing: {pos[0]}")
+            
             cleaned_obs["goal_pose"] = pos
             obs["extra"].pop(key)
             break  # Stop once a valid goal pose key is found
@@ -233,12 +239,12 @@ def normalize_data(data, stats, task_id):
     # nomalize to [0,1]
     ndata = (data - stats['min']) / (stats['max'] - stats['min'] + 0.1)
     # normalize to [-1, 1]
-    ndata = ndata * 2 - 1
+    #ndata = ndata * 2 - 1
     ndata[...,39] = task_id
     return ndata
 
 def unnormalize_data(ndata, stats, task_id):
-    ndata = (ndata + 1) / 2
+    #ndata = (ndata + 1) / 2
     data = ndata * (stats['max'] - stats['min'] + 0.1) + stats['min']
     data[...,39] = task_id
     return data
