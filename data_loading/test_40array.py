@@ -24,6 +24,7 @@ dataset = StateDataset(
     obs_horizon,
     action_horizon,
     task_id,
+    True,
     load_count,
 )
 
@@ -34,7 +35,7 @@ dataset2 = StateDataset(
     obs_horizon,
     action_horizon,
     task_id,
-    -1,
+    load_count,
 )
 
 print(len(dataset))
@@ -44,11 +45,17 @@ dataloader = DataLoader(dataset, shuffle=False, batch_size=1)
 dataloader2 = DataLoader(dataset2, shuffle=False, batch_size=1)
 
 batch = next(iter(dataloader))
+batch2 = next(iter(dataloader2))
 #stats = get_min_max_values(dataloader)
-print("Stats min shape:", dataset.stats["min"].shape)
-print("Stats max shape:", dataset.stats["max"].shape)
-print("Original:", batch["obs"])
+#print("Stats min shape:", dataset.stats["min"].shape)
+#print("Stats max shape:", dataset.stats["max"].shape)
+print("Original (normalized):", batch["obs"])
 print("Unnormalized:", unnormalize_data(batch["obs"], dataset.stats, task_id=task_id))
-print("Normalized:", normalize_data(batch["obs"], dataset.stats, task_id=task_id))
+print("Normalized:", unnormalize_data(normalize_data(batch["obs"], dataset.stats, task_id=task_id), dataset.stats, task_id=task_id))
+
+stats = get_min_max_values(dataloader2)
+print("Original (unnormalized):", batch2["obs"])
+print("Normalized:", normalize_batch(batch2, stats)["obs"])
+print("Unnormalized:", denormalize_batch(normalize_batch(batch2, stats), stats)["obs"])
 
 

@@ -53,8 +53,6 @@ def create_sample_indices(episode_ends: np.ndarray, sequence_length: int, pad_be
     #print(f"All indices: {indices}")
     return np.array(indices)
 
-
-
 def sample_sequence(train_data, sequence_length, buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx):
     result = dict()
     for key, input_arr in train_data.items():
@@ -149,7 +147,6 @@ def get_observations(obs):
     
     return cleaned_obs
 
-
 def get_min_max_values(dataloader):
     # do this once before training
     min_vals = None
@@ -159,9 +156,8 @@ def get_min_max_values(dataloader):
     for batch in dataloader:
         batch = batch['obs']
         batch_reshaped = batch.view(-1, batch.shape[-1])
-        if mask is None:
-            mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
-            mask[39] = False
+        mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
+        mask[39] = False
         batch_min = batch_reshaped[:, mask].min(dim=0)[0]
         batch_max = batch_reshaped[:, mask].max(dim=0)[0]
     
@@ -176,11 +172,12 @@ def get_min_max_values(dataloader):
     #print(f"Shape of mask: {mask.shape}")
     return {"obs": {"min": min_vals, "max": max_vals, "mask": mask}}
 
-
 def normalize_batch(batch, stats):
     batch_reshaped = batch["obs"].view(-1, batch["obs"].shape[-1])
+    mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
+    mask[39] = False
     normalized_batch = batch_reshaped.clone()
-    normalized_batch[:, stats["obs"]["mask"]] = (batch_reshaped[:, stats["obs"]["mask"]] - stats["obs"]["min"]) / (stats["obs"]["max"] - stats["obs"]["min"] + 0.1)
+    normalized_batch[:, mask] = (batch_reshaped[:, mask] - stats["obs"]["min"]) / (stats["obs"]["max"] - stats["obs"]["min"] + 0.1)
     #print(f"Shape of normalized_batch: {normalize_batch.shape}")
     batch["obs"] = normalized_batch.view(batch["obs"].shape)
     #print(f"Shape of normalized batch: {batch["obs"].shape}")
@@ -188,26 +185,52 @@ def normalize_batch(batch, stats):
 
 def denormalize_batch(batch, stats):   
     batch_reshaped = batch["obs"].view(-1, batch["obs"].shape[-1])
+    mask = torch.ones(batch_reshaped.shape[1], dtype=torch.bool)
+    mask[39] = False
     denormalized_batch = batch_reshaped.clone() 
-    denormalized_batch[:, stats["obs"]["mask"]] = batch_reshaped[:, stats["obs"]["mask"]] * (stats["obs"]["max"] - stats["obs"]["min"] + 0.1) + stats["obs"]["min"]
+    denormalized_batch[:, mask] = batch_reshaped[:, mask] * (stats["obs"]["max"] - stats["obs"]["min"] + 0.1) + stats["obs"]["min"]
     #print(f"Shape of denormalized_batch: {denormalized_batch.shape}")
     #print(f"Batch shape: {batch['obs'].shape}")
     batch["obs"] = denormalized_batch.view(batch["obs"].shape)
     #print(f"Shape of denormalized batch: {batch["obs"].shape}")
     return batch
 
-# normalize data
 def get_data_stats(data):
     data = data.reshape(-1,data.shape[-1])
     stats = {
         'min': np.min(data, axis=0),
         'max': np.max(data, axis=0)
     }
+    global_norm = False
+    #0-8 are the joint positions
+    #9-17 are the joint velocities
+    #18-24 is tcp pose
+    #25-31 is the goal pose
+    #32-38 is obj pose
+    #39 is the task id
+    if global_norm:
+        stats['min'][18] = -1.2
+        stats['max'][18] = 1.2
+        stats['min'][19] = -0.6
+        stats['max'][19] = 0.6
+        stats['min'][20] = 0
+        stats['max'][20] = 1.0
+        stats['min'][25] = -1.2
+        stats['max'][25] = 1.2
+        stats['min'][26] = -0.6
+        stats['max'][26] = 0.6
+        stats['min'][27] = 0
+        stats['max'][27] = 1.0
+        stats['min'][32] = -1.2
+        stats['max'][32] = 1.2
+        stats['min'][33] = -0.6
+        stats['max'][33] = 0.6
+        stats['min'][34] = 0
+        stats['max'][34] = 1.0
     return stats
 
 def normalize_data(data, stats, task_id):
     # nomalize to [0,1]
-    print(f"Data shape: {data.shape}")
     ndata = (data - stats['min']) / (stats['max'] - stats['min'] + 0.1)
     # normalize to [-1, 1]
     ndata = ndata * 2 - 1
@@ -215,7 +238,6 @@ def normalize_data(data, stats, task_id):
     return ndata
 
 def unnormalize_data(ndata, stats, task_id):
-    print(f"Ndata shape: {ndata.shape}")
     ndata = (ndata + 1) / 2
     data = ndata * (stats['max'] - stats['min'] + 0.1) + stats['min']
     data[...,39] = task_id
@@ -235,7 +257,7 @@ class StateDataset(Dataset):
     """
 
     def __init__(
-        self, dataset_file: str, pred_horizon: int, obs_horizon: int, action_horizon:int, task_id: np.float32, load_count=-1, device=None
+        self, dataset_file: str, pred_horizon: int, obs_horizon: int, action_horizon:int, task_id: np.float32, load_count=-1, normalize=False,device=None
     ) -> None:
         self.dataset_file = dataset_file
         self.pred_horizon = pred_horizon
@@ -368,10 +390,13 @@ class StateDataset(Dataset):
         # Added code for diffusion policy
         obs_dict = get_observations(self.obs)
         obs = convert_observation(obs_dict, self.task_id)
-        print("inside dataset", obs[0])
-        self.stats = get_data_stats(obs)
-        obs = normalize_data(obs, self.stats, self.task_id)
-        print("inside dataset", obs[0])
+
+        self.stats = None
+        
+        if normalize:
+            self.stats = get_data_stats(obs)
+            obs = normalize_data(obs, self.stats, self.task_id)
+       
         self.train_data = dict(
                         obs=obs,
                         actions=self.actions,
